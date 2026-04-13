@@ -10,25 +10,24 @@ import { SITE } from '../consts';
       <div class="content">
         <section class="intro" style="grid-template-columns: 1fr;">
           <div>
-            <div class="eyebrow">Colophon</div>
-            <h1>About.</h1>
+            <div class="eyebrow">Colofón</div>
+            <h1>Sobre este blog.</h1>
             <p class="bio">{SITE.authorBio}</p>
           </div>
         </section>
         <div class="prose">
           <p>
-            This site is built with <a href="https://astro.build">Astro</a>, written in
-            Markdown / MDX, typeset with <a href="https://katex.org">KaTeX</a>, and
-            hosted for free on GitHub Pages. Entries live as plain files under git — there
-            is no database, no CMS, and no runtime server.
+            Hecho con <a href="https://astro.build">Astro</a>, escrito en Markdown / MDX,
+            con fórmulas tipografiadas con <a href="https://katex.org">KaTeX</a> y hosteado
+            gratis en GitHub Pages. Las entradas viven como archivos planos en git — sin
+            base de datos, sin CMS, sin servidor.
           </p>
           <p>
-            New entries are published by pushing a new <code>.mdx</code> file to the
-            repository. Each push triggers a GitHub Actions workflow that rebuilds and
-            redeploys the site.
+            Para publicar, pusheo un <code>.mdx</code> nuevo al repo; un workflow de
+            GitHub Actions rebuildea y redeploya.
           </p>
           <p>
-            Source: <a href={SITE.github}>{SITE.github.replace('https://', '')}</a>.
+            Código: <a href={SITE.github}>{SITE.github.replace('https://', '')}</a>.
           </p>
         </div>
       </div>

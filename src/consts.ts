@@ -1,10 +1,11 @@
 // Site-wide constants. Edit these to personalize the blog.
 export const SITE = {
-  title: 'THE MONOLITH',
-  description: 'A digital manuscript — inquiries into the fabric of systems.',
+  title: 'tomi',
+  description: 'Apuntes personales mientras estudio y aprendo cosas nuevas.',
   author: 'Tomás Juárez',
+  homeHeadline: 'Apuntes de lo que estoy aprendiendo.',
   authorBio:
-    'I am a researcher and software architect obsessed with the intersection of theoretical physics and modern computation. This blog serves as a digital manuscript — an authoritative record of inquiries into the fabric of systems.',
+    'Soy ingeniero de sistemas. Este blog es un lugar para publicar temas personales — notas, pruebas y apuntes mientras estudio o aprendo cosas nuevas. Más un cuaderno público que una publicación pulida.',
   url: 'https://tomijuarez.github.io/blog',
   github: 'https://github.com/tomijuarez',
   // Optional portrait shown on the home page. Drop a file in /public/ (e.g. /portrait.jpg)
@@ -15,7 +16,7 @@ export const SITE = {
 // Navigation shown in the top-right header.
 export const NAV = [
   { label: 'HOME', href: '/' },
-  { label: 'LIBRARY', href: '/archive' },
+  { label: 'POSTS', href: '/archive' },
   { label: 'TAGS', href: '/tags' },
   { label: 'ABOUT', href: '/about' },
 ];
