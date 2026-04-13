@@ -1,11 +1,11 @@
 // Site-wide constants. Edit these to personalize the blog.
 export const SITE = {
   title: 'tomi',
-  description: 'Apuntes personales mientras estudio y aprendo cosas nuevas.',
+  description: 'A public notebook of personal topics while studying and learning new things.',
   author: 'Tomás Juárez',
-  homeHeadline: 'Apuntes de lo que estoy aprendiendo.',
+  homeHeadline: 'Notes from whatever I am currently learning.',
   authorBio:
-    'Soy ingeniero de sistemas. Este blog es un lugar para publicar temas personales — notas, pruebas y apuntes mientras estudio o aprendo cosas nuevas. Más un cuaderno público que una publicación pulida.',
+    'I am a systems engineer. This blog is a public notebook — personal topics, notes, and experiments from whatever I am currently studying or learning. Less polished publication, more working drafts.',
   url: 'https://tomijuarez.github.io/blog',
   github: 'https://github.com/tomijuarez',
   // Optional portrait shown on the home page. Drop a file in /public/ (e.g. /portrait.jpg)
