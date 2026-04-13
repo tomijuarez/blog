@@ -1,0 +1,324 @@
+---
+title: What XGBoost Is Actually Optimizing
+date: 2026-04-13
+tags: [machine-learning, statistical-learning]
+excerpt: A step-by-step derivation from decision trees to XGBoost, keeping the mathematical thread visible at every step.
+---
+
+Tree-based models are everywhere, but most explanations either stay too high level or jump straight into implementations.
+
+This is a step-by-step derivation starting from decision trees and ending in XGBoost, following the underlying math and making sense of each step along the way. The goal is not just to use these models, but to understand what is actually being optimized at each stage.
+
+This is not meant to reproduce the original paper. The formulation here is simplified on purpose to make the mathematical progression easier to follow. The original XGBoost paper by Tianqi Chen and Carlos Guestrin ("XGBoost: A Scalable Tree Boosting System") is more general and more rigorous.
+
+The focus here is to keep the mathematical thread visible and continuous.
+
+---
+
+## Decision Trees: Partitioning the Space
+
+A decision tree is a supervised learning model for regression and classification. Its core idea is to recursively partition the feature space into disjoint regions and assign a prediction to each one.
+
+Formally:
+$$
+X=\bigcup_{i=0}^{n} \mathcal{R}_i \quad \text{, and } \mathcal{R}_i \cap \mathcal{R}_j = \emptyset \text{ for } i \neq j
+$$
+
+At a node corresponding to region $\mathcal{R}_m$, we split using thresholds:
+$$
+\mathcal{R}^L_m = \{X \in \mathcal{R}_m \mid x_i \le \theta_m\}
+$$
+$$
+\mathcal{R}^R_m = \{X \in \mathcal{R}_m \mid x_i > \theta_m\}
+$$
+
+The construction is greedy. At each step we choose the split that minimizes a local objective:
+$$
+\theta^* = \arg \min_\theta \left[
+\frac{|\mathcal{R}^L_m|}{|\mathcal{R}_m|} \, \text{impurity}(\mathcal{R}^L_m) +
+\frac{|\mathcal{R}^R_m|}{|\mathcal{R}_m|} \, \text{impurity}(\mathcal{R}^R_m)
+\right]
+$$
+
+In classification, this depends on the class distribution inside the region. If $p_k=\frac{N_k}{N}$:
+$$
+G(\mathcal{R})=1-\sum_{k=1}^{K}p^2_k
+$$
+$$
+H(\mathcal{R})=-\sum_{k=1}^{K} p_k \log(p_k)
+$$
+
+In regression, the objective becomes:
+$$
+D(\mathcal{R})=\frac{1}{|\mathcal{R}|} \sum_{i \in \mathcal{R}} (y_i-\hat{y}_{\mathcal{R}})^2
+$$
+$$
+\hat{y}_{\mathcal{R}}=\frac{1}{|\mathcal{R}|} \sum_{i \in \mathcal{R}} y_i
+$$
+
+Graphically, we want something like the following:
+
+![regions tree](/blog/images/regions-tree.png)
+
+At a more concrete level, this is just a greedy search:
+
+```
+procedure BuildTree(X, Y, d)
+    node ← new node
+
+    if d ≥ d_max or Y is constant:
+        node.value ← leaf_value(Y)
+        return node
+
+    best_loss ← ∞
+
+    for each feature j:
+        sort X[:, j]
+
+        for each split t:
+            split Y into Y_L and Y_R
+
+            if Y_L or Y_R is empty:
+                continue
+
+            current_loss ← loss(Y_L) + loss(Y_R)
+
+            if current_loss < best_loss:
+                best_loss ← current_loss
+                best_feature ← j
+                best_threshold ← t
+
+    if no split found:
+        node.value ← leaf_value(Y)
+        return node
+
+    split data into X_L, Y_L, X_R, Y_R
+
+    node.left  ← BuildTree(X_L, Y_L, d+1)
+    node.right ← BuildTree(X_R, Y_R, d+1)
+
+    return node
+```
+
+Once the model is trained, prediction is just evaluating the sequence of trees.
+
+Given an input $x$, we compute:
+$$
+F_m(x)=\sum_{k=0}^{m} h_k(x)
+$$
+
+Each $h_k(x)$ is obtained by traversing the corresponding tree from the root to a leaf, following the same threshold rules used during training, until reaching a region $\mathcal{R}_j$ and returning its value $w_j$.
+
+```
+function Predict(x):
+    y ← 0
+
+    for each tree h_k:
+        node ← root of h_k
+
+        while node is not leaf:
+            if x[node.feature] ≤ node.threshold:
+                node ← node.left
+            else:
+                node ← node.right
+
+        y ← y + node.value
+
+    return y
+```
+
+There is no optimization here. The model is already fixed. Prediction is just accumulating the outputs of each tree.
+
+---
+
+## From Trees to Boosting
+
+A single tree is unstable and has high variance. Instead of trying to get everything right in one pass, we build a sequence of models.
+
+$$
+F_m(X)=F_{m-1}(X)+h_m(X)
+$$
+
+Each new tree $h_m$ is not predicting $Y$ directly. It is correcting the current model.
+
+So the problem becomes: given $F_{m-1}$, what function $h_m$ should we add to reduce the loss?
+
+---
+
+## The Problem We Actually Need to Solve
+
+At step $m$, the objective is:
+$$
+\mathcal{L}(Y, F_{m-1}(X) + h_m(X))
+$$
+
+We want:
+$$
+\arg \min_{h_m} \sum_i \mathcal{L}(y_i, F_{m-1}(x_i) + h_m(x_i))
+$$
+
+This is where things stop being simple.
+
+If $\mathcal{L}$ is MSE, we can derive things explicitly. But we want a method that works for *any* loss function.
+
+The difficulty is that $h_m$ is a function, and the loss is evaluated after adding it to the current model. There is no simple closed-form solution in general.
+
+---
+
+## Why Taylor Appears
+
+Up to this point, the problem we need to solve at step $m$ is:
+$$
+\arg \min_{h_m} \sum_i \mathcal{L}(y_i, F_{m-1}(x_i) + h_m(x_i))
+$$
+
+The issue is that this is not directly tractable.
+
+The function we are optimizing over, $h_m$, is a tree. It is piecewise constant, non-differentiable, and defined implicitly through splits. There is no general way to plug this into $\mathcal{L}$ and solve the minimization in closed form.
+
+Even worse, we want this to work for arbitrary loss functions, not just MSE. For some specific cases we could derive residuals explicitly, but that does not generalize.
+
+So instead of solving the exact problem, we approximate how the loss behaves when we add a small function $h_m(x)$ on top of the current model.
+
+We expand:
+$$
+\mathcal{L}(y_i, F_{m-1}(x_i) + h_m(x_i))
+$$
+
+around $h_m(x_i)=0$. This is not arbitrary: $h_m$ is a correction over the current model, so we are interested in how the loss changes locally when we add it.
+
+Using a second-order Taylor expansion:
+$$
+\mathcal{L}(y_i, F_{m-1}(x_i)+h_m(x_i)) \approx
+\mathcal{L}(y_i,F_{m-1}(x_i)) +
+\frac{\partial \mathcal{L}}{\partial F} h_m(x_i) +
+\frac{1}{2} \frac{\partial^2 \mathcal{L}}{\partial F^2} h_m(x_i)^2
+$$
+
+Define:
+$$
+g_i=\frac{\partial \mathcal{L}(y_i,F_{m-1}(x_i))}{\partial F_{m-1}(x_i)}
+$$
+$$
+h_i=\frac{\partial^{2}\mathcal{L}(y_i,F_{m-1}(x_i))}{\partial F_{m-1}(x_i)^2}
+$$
+
+Then:
+$$
+\mathcal{L} \approx
+\mathcal{L}(y_i,F_{m-1}(x_i)) +
+g_i h_m(x_i) +
+\frac{1}{2} h_i h_m(x_i)^2
+$$
+
+The point of doing this is that the objective becomes quadratic in $h_m(x_i)$.
+
+This is the key step. Once the loss is expressed in this form, we can optimize it even if $h_m$ is a tree, because the problem reduces to fitting constants per region under a quadratic objective.
+
+---
+
+## Leaf-wise Optimization
+
+Since $h_m$ is a tree, it outputs constant values per region:
+$$
+h_m(x)=w_j \quad \text{if } x \in \mathcal{R}_j
+$$
+
+So the problem decomposes:
+$$
+\arg \min_{w_j}\sum_{i\in\mathcal{R}_j}(g_iw_j + \frac{1}{2} h_i w_j^2)
+$$
+
+Which becomes:
+$$
+\arg \min_{w_j}\left(
+w_j \sum g_i + \frac{1}{2} w_j^2 \sum h_i
+\right)
+$$
+
+Derivative:
+$$
+\sum g_i + w_j \sum h_i = 0
+$$
+
+Solution:
+$$
+w_j=-\frac{G_j}{H_j}
+$$
+
+with:
+$$
+G_j=\sum g_i, \quad H_j=\sum h_i
+$$
+
+---
+
+## Splitting Through the Objective
+
+Plugging back gives a score:
+$$
+\text{score}_j=\frac{1}{2}\frac{G_j^2}{H_j}
+$$
+
+A split replaces one region with two:
+$$
+\text{Gain}=\frac{1}{2}\left(
+\frac{G_L^2}{H_L} +
+\frac{G_R^2}{H_R} -
+\frac{G_j^2}{H_j}
+\right)
+$$
+
+The split is chosen by directly maximizing reduction in the objective.
+
+---
+
+## Regularization
+
+Up to this point, nothing in the objective prevents the model from creating many small regions or assigning large values to leaves.
+
+From:
+$$
+\text{score}_j=\frac{1}{2}\frac{G_j^2}{H_j}
+$$
+
+we can see that increasing $G_j$ or making $H_j$ small can arbitrarily improve the score. In practice, this leads to very aggressive splits and large leaf values, which fit the training data closely but generalize poorly.
+
+To control this, we introduce penalties on both the magnitude of leaf values and the number of leaves:
+$$
+\lambda \sum_j w_j^2
+$$
+$$
+\gamma L_m
+$$
+
+Objective becomes:
+$$
+\sum_i \left(
+g_i h_m(x_i) + \frac{1}{2} h_i h_m(x_i)^2
+\right)
++ \gamma L_m
++ \frac{1}{2}\lambda\sum_j w_j^2
+$$
+
+Repeating the derivation:
+$$
+w_j=-\frac{G_j}{H_j+\lambda}
+$$
+
+and:
+$$
+\text{Gain}=\frac{1}{2}\left(
+\frac{G_L^2}{H_L+\lambda} +
+\frac{G_R^2}{H_R+\lambda} -
+\frac{G_j^2}{H_j+\lambda}
+\right) - \gamma
+$$
+
+---
+
+## Wrap up
+
+A decision tree partitions the space. Boosting turns this into a sequence of corrections. XGBoost makes the objective explicit by approximating it locally and optimizing it directly.
+
+The use of Taylor is not arbitrary. It is what turns an intractable functional optimization problem into something we can solve analytically at each step.
