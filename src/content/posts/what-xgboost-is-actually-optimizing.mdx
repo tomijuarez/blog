@@ -14,9 +14,7 @@ This is not meant to reproduce the original paper. The formulation here is simpl
 The focus here is to keep the mathematical thread visible and continuous.
 
 ---
-
 ## Decision Trees: Partitioning the Space
-
 A decision tree is a supervised learning model for regression and classification. Its core idea is to recursively partition the feature space into disjoint regions and assign a prediction to each one.
 
 Formally:
@@ -57,46 +55,44 @@ $$
 $$
 
 Graphically, we want something like the following:
-
 ![regions tree](/blog/images/regions-tree.png)
-
 At a more concrete level, this is just a greedy search:
 
 ```
-procedure BuildTree(X, Y, d)
+procedure BuildTree(X, Y, d)  
     node ← new node
-
-    if d ≥ d_max or Y is constant:
-        node.value ← leaf_value(Y)
-        return node
-
-    best_loss ← ∞
-
-    for each feature j:
-        sort X[:, j]
-
-        for each split t:
-            split Y into Y_L and Y_R
-
-            if Y_L or Y_R is empty:
-                continue
-
-            current_loss ← loss(Y_L) + loss(Y_R)
-
-            if current_loss < best_loss:
-                best_loss ← current_loss
-                best_feature ← j
-                best_threshold ← t
-
-    if no split found:
-        node.value ← leaf_value(Y)
-        return node
-
-    split data into X_L, Y_L, X_R, Y_R
-
-    node.left  ← BuildTree(X_L, Y_L, d+1)
-    node.right ← BuildTree(X_R, Y_R, d+1)
-
+    
+    if d ≥ d_max or Y is constant:  
+        node.value ← leaf_value(Y)  
+        return node  
+      
+    best_loss ← ∞  
+      
+    for each feature j:  
+        sort X[:, j]  
+      
+        for each split t:  
+            split Y into Y_L and Y_R  
+      
+            if Y_L or Y_R is empty:  
+                continue  
+      
+            current_loss ← loss(Y_L) + loss(Y_R)  
+      
+            if current_loss < best_loss:  
+                best_loss ← current_loss  
+                best_feature ← j  
+                best_threshold ← t  
+      
+    if no split found:  
+        node.value ← leaf_value(Y)  
+        return node  
+      
+    split data into X_L, Y_L, X_R, Y_R  
+      
+    node.left  ← BuildTree(X_L, Y_L, d+1)  
+    node.right ← BuildTree(X_R, Y_R, d+1)  
+      
     return node
 ```
 
@@ -110,20 +106,20 @@ $$
 Each $h_k(x)$ is obtained by traversing the corresponding tree from the root to a leaf, following the same threshold rules used during training, until reaching a region $\mathcal{R}_j$ and returning its value $w_j$.
 
 ```
-function Predict(x):
+function Predict(x):  
     y ← 0
-
-    for each tree h_k:
-        node ← root of h_k
-
-        while node is not leaf:
-            if x[node.feature] ≤ node.threshold:
-                node ← node.left
-            else:
-                node ← node.right
-
-        y ← y + node.value
-
+    
+    for each tree h_k:  
+        node ← root of h_k  
+      
+        while node is not leaf:  
+            if x[node.feature] ≤ node.threshold:  
+                node ← node.left  
+            else:  
+                node ← node.right  
+      
+        y ← y + node.value  
+      
     return y
 ```
 
@@ -144,7 +140,6 @@ Each new tree $h_m$ is not predicting $Y$ directly. It is correcting the current
 So the problem becomes: given $F_{m-1}$, what function $h_m$ should we add to reduce the loss?
 
 ---
-
 ## The Problem We Actually Need to Solve
 
 At step $m$, the objective is:
@@ -164,9 +159,7 @@ If $\mathcal{L}$ is MSE, we can derive things explicitly. But we want a method t
 The difficulty is that $h_m$ is a function, and the loss is evaluated after adding it to the current model. There is no simple closed-form solution in general.
 
 ---
-
 ## Why Taylor Appears
-
 Up to this point, the problem we need to solve at step $m$ is:
 $$
 \arg \min_{h_m} \sum_i \mathcal{L}(y_i, F_{m-1}(x_i) + h_m(x_i))
@@ -216,9 +209,7 @@ The point of doing this is that the objective becomes quadratic in $h_m(x_i)$.
 This is the key step. Once the loss is expressed in this form, we can optimize it even if $h_m$ is a tree, because the problem reduces to fitting constants per region under a quadratic objective.
 
 ---
-
 ## Leaf-wise Optimization
-
 Since $h_m$ is a tree, it outputs constant values per region:
 $$
 h_m(x)=w_j \quad \text{if } x \in \mathcal{R}_j
@@ -252,9 +243,7 @@ G_j=\sum g_i, \quad H_j=\sum h_i
 $$
 
 ---
-
 ## Splitting Through the Objective
-
 Plugging back gives a score:
 $$
 \text{score}_j=\frac{1}{2}\frac{G_j^2}{H_j}
@@ -272,9 +261,7 @@ $$
 The split is chosen by directly maximizing reduction in the objective.
 
 ---
-
 ## Regularization
-
 Up to this point, nothing in the objective prevents the model from creating many small regions or assigning large values to leaves.
 
 From:
@@ -291,7 +278,6 @@ $$
 $$
 \gamma L_m
 $$
-
 Objective becomes:
 $$
 \sum_i \left(
@@ -300,12 +286,10 @@ g_i h_m(x_i) + \frac{1}{2} h_i h_m(x_i)^2
 + \gamma L_m
 + \frac{1}{2}\lambda\sum_j w_j^2
 $$
-
 Repeating the derivation:
 $$
 w_j=-\frac{G_j}{H_j+\lambda}
 $$
-
 and:
 $$
 \text{Gain}=\frac{1}{2}\left(
@@ -316,9 +300,61 @@ $$
 $$
 
 ---
+## Finally: XGBoost
+`XGBoostTrain` ties everything together. At each step it computes gradients and hessians, builds a tree using the derived objective, and accumulates the correction.
+```
 
+procedure XGBoostTrain(X, Y, M, λ, γ, d_max)
+    F ← zeros(len(Y)) # accumulated model, F_0 = 0
+    for m = 1 to M:
+        g ← gradient(Y, F)     # g_i = ∂L(y_i, F(x_i)) / ∂F(x_i)
+        h ← hessian(Y, F)      # h_i = ∂²L(y_i, F(x_i)) / ∂F(x_i)²
+    
+        tree ← BuildXGBTree(X, g, h, λ, γ, d=0, d_max)
+    
+        F ← F + tree.predict(X)
+
+    return F
+
+```
+```
+procedure BuildXGBTree(X, g, h, λ, γ, d, d_max)
+    node ← new node
+    G ← sum(g)
+    H ← sum(h)
+    
+    if d ≥ d_max:
+        node.value ← -G / (H + λ)
+        return node
+    
+    best_gain ← 0
+    
+    for j = 1 to columns(X):
+        sort by X[:, j]
+    
+        for each split t:
+            G_L, H_L ← sum of g, h where X[:, j] ≤ t
+            G_R, H_R ← sum of g, h where X[:, j] > t
+    
+            gain ← (1/2) * (G_L²/(H_L+λ) + G_R²/(H_R+λ) - G²/(H+λ)) - γ
+    
+            if gain > best_gain:
+                best_gain ← gain
+                best_feature ← j
+                best_threshold ← t
+    
+    if best_gain == 0:
+        node.value ← -G / (H + λ)
+        return node
+    
+    split X, g, h into left and right using best_feature and best_threshold
+    
+    node.left  ← BuildXGBTree(X_L, g_L, h_L, λ, γ, d+1, d_max)
+    node.right ← BuildXGBTree(X_R, g_R, h_R, λ, γ, d+1, d_max)
+    
+    return node
+```
 ## Wrap up
-
 A decision tree partitions the space. Boosting turns this into a sequence of corrections. XGBoost makes the objective explicit by approximating it locally and optimizing it directly.
 
 The use of Taylor is not arbitrary. It is what turns an intractable functional optimization problem into something we can solve analytically at each step.
