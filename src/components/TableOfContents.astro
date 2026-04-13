@@ -1,0 +1,26 @@
+---
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: MarkdownHeading[];
+  label?: string;
+}
+
+const { headings, label = 'Contents' } = Astro.props;
+// Show h2 and h3 only. h1 is typically the article title; h4+ adds noise.
+const items = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+---
+<aside class="sidebar toc">
+  <div class="sidebar-label">{label}</div>
+  {items.length > 0 ? (
+    <ul>
+      {items.map((h) => (
+        <li class={`toc-depth-${h.depth}`}>
+          <a href={`#${h.slug}`}>{h.text}</a>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <p class="toc-empty">—</p>
+  )}
+</aside>

@@ -2,6 +2,7 @@
 import { render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Sidebar from '../../components/Sidebar.astro';
+import TableOfContents from '../../components/TableOfContents.astro';
 import { getPublishedPosts, formatDate, tagSlug, type Post } from '../../utils/posts';
 import { url } from '../../utils/url';
 
@@ -15,12 +16,16 @@ export async function getStaticPaths() {
 
 type Props = { post: Post };
 const { post } = Astro.props;
-const { Content } = await render(post);
+const { Content, headings } = await render(post);
+const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 ---
 <BaseLayout title={post.data.title} description={post.data.excerpt}>
   <div class="frame">
     <div class="layout">
-      <Sidebar activeTag={post.data.tags[0]} />
+      {tocHeadings.length > 0
+        ? <TableOfContents headings={headings} />
+        : <Sidebar activeTag={post.data.tags[0]} />
+      }
       <div class="content">
         <article>
           <header class="article-header">

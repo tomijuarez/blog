@@ -131,6 +131,57 @@ a:hover {
   text-transform: uppercase;
   color: var(--ink-muted);
   padding-top: 2.5rem;
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  /* Hide scrollbar — sidebar shouldn't compete visually */
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border-radius: 2px;
+}
+@media (max-width: 780px) {
+  .sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding-top: 1rem;
+  }
+}
+
+/* Table of contents inside sidebar */
+.sidebar.toc ul {
+  gap: 0.55rem;
+}
+.sidebar.toc a {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink-muted);
+  padding-left: 0.7rem;
+  border-left: 1px solid transparent;
+}
+.sidebar.toc a:hover {
+  color: var(--ink);
+  border-left-color: var(--ink);
+}
+.sidebar.toc li.toc-depth-3 a {
+  padding-left: 1.4rem;
+  color: var(--ink-faint);
+  font-size: 0.74rem;
+}
+.sidebar.toc .toc-empty {
+  padding-left: 0.7rem;
+  margin: 0;
+  color: var(--ink-faint);
 }
 .sidebar .sidebar-label {
   color: var(--ink-faint);
