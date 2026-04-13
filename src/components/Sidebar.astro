@@ -1,0 +1,28 @@
+---
+import { getAllTags, tagSlug } from '../utils/posts';
+import { url } from '../utils/url';
+
+interface Props {
+  activeTag?: string;
+  label?: string;
+}
+
+const { activeTag, label = 'Index / Topics' } = Astro.props;
+const tags = await getAllTags();
+---
+<aside class="sidebar">
+  <div class="sidebar-label">{label}</div>
+  <ul>
+    {tags.map(({ tag }) => (
+      <li>
+        <a
+          href={url(`/tags/${tagSlug(tag)}`)}
+          class={activeTag === tag ? 'active' : ''}
+        >
+          {tag}
+        </a>
+      </li>
+    ))}
+    {tags.length === 0 && <li><span>—</span></li>}
+  </ul>
+</aside>

@@ -1,0 +1,11 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { url } from '../utils/url';
+---
+<BaseLayout title="404">
+  <div class="frame" style="text-align: center; padding-top: 6rem;">
+    <div class="eyebrow" style="font-family: var(--font-ui); font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint);">Error 404</div>
+    <h1 style="font-family: var(--font-display); font-size: 3rem; margin: 1rem 0;">Not in the library.</h1>
+    <p><a href={url('/')}>← Return home</a></p>
+  </div>
+</BaseLayout>

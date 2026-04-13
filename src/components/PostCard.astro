@@ -1,0 +1,25 @@
+---
+import { formatDate, tagSlug, type Post } from '../utils/posts';
+import { url } from '../utils/url';
+
+interface Props {
+  post: Post;
+}
+const { post } = Astro.props;
+const primaryTag = post.data.tags[0];
+---
+<article class="post-card">
+  <div class="post-meta">
+    <span>{formatDate(post.data.date)}</span>
+    {primaryTag && (
+      <>
+        <span class="sep">/</span>
+        <a href={url(`/tags/${tagSlug(primaryTag)}`)}>{primaryTag}</a>
+      </>
+    )}
+  </div>
+  <h2>
+    <a href={url(`/posts/${post.id}`)}>{post.data.title}</a>
+  </h2>
+  {post.data.excerpt && <p class="excerpt">{post.data.excerpt}</p>}
+</article>

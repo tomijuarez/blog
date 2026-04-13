@@ -1,0 +1,37 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Sidebar from '../components/Sidebar.astro';
+import PostCard from '../components/PostCard.astro';
+import { SITE } from '../consts';
+import { getPublishedPosts } from '../utils/posts';
+
+const posts = await getPublishedPosts();
+---
+<BaseLayout>
+  <div class="frame">
+    <div class="layout">
+      <Sidebar />
+      <div class="content">
+        <section class="intro">
+          <div>
+            <div class="eyebrow">Author Introduction</div>
+            <h1>Curating complexity with precision.</h1>
+            <p class="bio">{SITE.authorBio}</p>
+          </div>
+          {SITE.avatar && (
+            <img class="portrait" src={SITE.avatar} alt={SITE.author} />
+          )}
+        </section>
+
+        <section>
+          {posts.map((post) => <PostCard post={post} />)}
+          {posts.length === 0 && (
+            <p style="padding: 3rem 0; color: var(--ink-faint); text-align: center;">
+              No entries yet. Add a file under <code>src/content/posts/</code>.
+            </p>
+          )}
+        </section>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

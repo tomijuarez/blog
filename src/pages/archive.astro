@@ -1,0 +1,62 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Sidebar from '../components/Sidebar.astro';
+import { getPublishedPosts, formatDate, tagSlug } from '../utils/posts';
+import { url } from '../utils/url';
+
+const posts = await getPublishedPosts();
+
+// Group by year
+const byYear = new Map<number, typeof posts>();
+for (const p of posts) {
+  const y = p.data.date.getFullYear();
+  if (!byYear.has(y)) byYear.set(y, []);
+  byYear.get(y)!.push(p);
+}
+const years = [...byYear.keys()].sort((a, b) => b - a);
+---
+<BaseLayout title="Library">
+  <div class="frame">
+    <div class="layout">
+      <Sidebar />
+      <div class="content">
+        <section class="intro" style="grid-template-columns: 1fr;">
+          <div>
+            <div class="eyebrow">Library</div>
+            <h1>Complete archive.</h1>
+            <p class="bio">Every entry, by year.</p>
+          </div>
+        </section>
+
+        {years.map((year) => (
+          <section style="padding: 1.5rem 0; border-bottom: 1px solid var(--rule);">
+            <h2 style="font-family: var(--font-ui); font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 1rem;">
+              {year}
+            </h2>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+              {byYear.get(year)!.map((p) => (
+                <li style="display: flex; gap: 1.5rem; padding: 0.4rem 0; align-items: baseline;">
+                  <span style="font-family: var(--font-ui); font-size: 0.72rem; letter-spacing: 0.12em; color: var(--ink-faint); min-width: 5.5rem;">
+                    {formatDate(p.data.date).split(',')[0]}
+                  </span>
+                  <a href={url(`/posts/${p.id}`)} style="border: none; flex: 1;">
+                    {p.data.title}
+                  </a>
+                  {p.data.tags[0] && (
+                    <a
+                      href={url(`/tags/${tagSlug(p.data.tags[0])}`)}
+                      style="border: none; font-family: var(--font-ui); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint);"
+                    >
+                      {p.data.tags[0]}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+        {posts.length === 0 && <p style="padding: 3rem 0; color: var(--ink-faint);">No entries yet.</p>}
+      </div>
+    </div>
+  </div>
+</BaseLayout>

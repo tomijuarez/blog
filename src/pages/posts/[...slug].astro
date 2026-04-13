@@ -1,0 +1,51 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Sidebar from '../../components/Sidebar.astro';
+import { getPublishedPosts, formatDate, tagSlug, type Post } from '../../utils/posts';
+import { url } from '../../utils/url';
+
+export async function getStaticPaths() {
+  const posts = await getPublishedPosts();
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+type Props = { post: Post };
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+<BaseLayout title={post.data.title} description={post.data.excerpt}>
+  <div class="frame">
+    <div class="layout">
+      <Sidebar activeTag={post.data.tags[0]} />
+      <div class="content">
+        <article>
+          <header class="article-header">
+            <div class="article-meta">
+              {formatDate(post.data.date)}
+              {post.data.tags.length > 0 && <> &nbsp;·&nbsp; </>}
+              {post.data.tags.map((t, i) => (
+                <>
+                  {i > 0 && <span>, </span>}
+                  <a href={url(`/tags/${tagSlug(t)}`)}>{t}</a>
+                </>
+              ))}
+            </div>
+            <h1>{post.data.title}</h1>
+          </header>
+          <div class="prose">
+            <Content />
+          </div>
+          <div style="margin-top: 3rem; text-align: center;">
+            {post.data.tags.map((t) => (
+              <a class="tag" href={url(`/tags/${tagSlug(t)}`)}>{t}</a>
+            ))}
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

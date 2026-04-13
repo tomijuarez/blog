@@ -1,0 +1,20 @@
+---
+import { SITE, NAV } from '../consts';
+import { url } from '../utils/url';
+
+const currentPath = Astro.url.pathname.replace(import.meta.env.BASE_URL, '/').replace(/\/+/g, '/');
+---
+<header class="site-header">
+  <a href={url('/')} class="brand">{SITE.title}</a>
+  <nav class="site-nav">
+    {NAV.map((item) => {
+      const href = url(item.href);
+      const isActive =
+        (item.href === '/' && (currentPath === '/' || currentPath === '')) ||
+        (item.href !== '/' && currentPath.startsWith(item.href));
+      return (
+        <a href={href} class={isActive ? 'active' : ''}>{item.label}</a>
+      );
+    })}
+  </nav>
+</header>

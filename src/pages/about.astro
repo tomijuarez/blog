@@ -1,0 +1,37 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Sidebar from '../components/Sidebar.astro';
+import { SITE } from '../consts';
+---
+<BaseLayout title="About">
+  <div class="frame">
+    <div class="layout">
+      <Sidebar />
+      <div class="content">
+        <section class="intro" style="grid-template-columns: 1fr;">
+          <div>
+            <div class="eyebrow">Colophon</div>
+            <h1>About.</h1>
+            <p class="bio">{SITE.authorBio}</p>
+          </div>
+        </section>
+        <div class="prose">
+          <p>
+            This site is built with <a href="https://astro.build">Astro</a>, written in
+            Markdown / MDX, typeset with <a href="https://katex.org">KaTeX</a>, and
+            hosted for free on GitHub Pages. Entries live as plain files under git — there
+            is no database, no CMS, and no runtime server.
+          </p>
+          <p>
+            New entries are published by pushing a new <code>.mdx</code> file to the
+            repository. Each push triggers a GitHub Actions workflow that rebuilds and
+            redeploys the site.
+          </p>
+          <p>
+            Source: <a href={SITE.github}>{SITE.github.replace('https://', '')}</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
