@@ -8,7 +8,7 @@ import rehypeKatex from 'rehype-katex';
 // https://astro.build/config
 export default defineConfig({
   // Change `site` if you move to a custom domain. `base` must match the repo name.
-  site: 'https://tomasjuarez.github.io',
+  site: 'https://tomijuarez.github.io',
   base: '/blog',
   trailingSlash: 'ignore',
   integrations: [mdx(), sitemap()],

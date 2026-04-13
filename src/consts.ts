@@ -5,8 +5,8 @@ export const SITE = {
   author: 'Tomás Juárez',
   authorBio:
     'I am a researcher and software architect obsessed with the intersection of theoretical physics and modern computation. This blog serves as a digital manuscript — an authoritative record of inquiries into the fabric of systems.',
-  url: 'https://tomasjuarez.github.io/blog',
-  github: 'https://github.com/tomasjuarez',
+  url: 'https://tomijuarez.github.io/blog',
+  github: 'https://github.com/tomijuarez',
   // Optional portrait shown on the home page. Drop a file in /public/ (e.g. /portrait.jpg)
   // and set `avatar: '/portrait.jpg'`. Leave null to hide.
   avatar: null as string | null,

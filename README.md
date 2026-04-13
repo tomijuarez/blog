@@ -63,7 +63,7 @@ yarn preview   # serves the build locally
 
 ## First-time GitHub Pages setup
 
-This repo is configured to deploy to **`https://tomasjuarez.github.io/blog`** (subpath).
+This repo is configured to deploy to **`https://tomijuarez.github.io/blog`** (subpath).
 
 1. Push this repo to GitHub under the name `blog`:
    ```bash
@@ -71,7 +71,7 @@ This repo is configured to deploy to **`https://tomasjuarez.github.io/blog`** (s
    git add -A
    git commit -m "Initial commit"
    git branch -M main
-   git remote add origin git@github.com:tomasjuarez/blog.git
+   git remote add origin git@github.com:tomijuarez/blog.git
    git push -u origin main
    ```
 2. In the repo's GitHub page, go to **Settings → Pages** and set **Source** to
@@ -79,10 +79,10 @@ This repo is configured to deploy to **`https://tomasjuarez.github.io/blog`** (s
 3. The `Deploy to GitHub Pages` workflow runs on every push to `main`. First
    deploy takes ~1–2 minutes.
 
-If you later rename the repo (e.g. to `tomasjuarez.github.io` for a root-domain
+If you later rename the repo (e.g. to `tomijuarez.github.io` for a root-domain
 site), edit `astro.config.mjs`:
 ```js
-site: 'https://tomasjuarez.github.io',
+site: 'https://tomijuarez.github.io',
 base: '/',          // instead of '/blog'
 ```
 
@@ -93,7 +93,7 @@ base: '/',          // instead of '/blog'
 2. In your DNS provider, point the domain at GitHub Pages:
    - Apex (`example.com`): four `A` records to `185.199.108.153`, `185.199.109.153`,
      `185.199.110.153`, `185.199.111.153`.
-   - `www.example.com`: a `CNAME` to `tomasjuarez.github.io`.
+   - `www.example.com`: a `CNAME` to `tomijuarez.github.io`.
 3. Update `astro.config.mjs`:
    ```js
    site: 'https://example.com',
