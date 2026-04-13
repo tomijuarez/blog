@@ -1,0 +1,264 @@
+---
+title: Demystifying XGBoost
+date: 2026-04-13
+tags: [machine-learning, statistical-learning]
+excerpt: A walk-through of the reasoning behind XGBoost — from greedy decision trees to fitting a second-order Taylor approximation of the loss at each boosting step.
+---
+
+A decision tree is a supervised learning model for regression and classification. At a high level, what it does is not especially mysterious: it recursively partitions the feature space into disjoint regions and assigns a prediction to each one. Instead of learning a single global function, it builds a piecewise approximation over the input space.
+
+Formally, we want to partition the space into regions
+$$
+X=\bigcup_{i=0}^{n}\mathcal{R}_i \quad \text{and} \quad \mathcal{R}_i \cap \mathcal{R}_j=\emptyset \text{ for } i \neq j
+$$
+
+Each region ends up corresponding to a leaf in the tree. The way the tree is built is greedy and top-down. At each node, we choose a feature and a threshold, and split the current region into two subregions:
+$$
+\mathcal{R}_m^L=\{X \in \mathcal{R}_m \mid x_j \le \theta_m\}
+$$
+$$
+\mathcal{R}_m^R=\{X \in \mathcal{R}_m \mid x_j > \theta_m\}
+$$
+
+There is no global optimization here. The tree does not solve for the best overall partition of the whole feature space. It simply tries many local splits and keeps the one that looks best at the current node.
+
+What "best" means depends on the objective. In general, we choose the threshold that minimizes the weighted impurity of the child regions:
+$$
+\theta^*=\arg\min_{\theta}\left[
+\frac{|\mathcal{R}_m^L|}{|\mathcal{R}_m|}\,\mathrm{impurity}(\mathcal{R}_m^L)+
+\frac{|\mathcal{R}_m^R|}{|\mathcal{R}_m|}\,\mathrm{impurity}(\mathcal{R}_m^R)
+\right]
+$$
+
+The impurity function depends on the problem. In classification, we usually use Gini impurity or entropy. In regression, we typically use mean squared error. In that case, what we are really doing is trying to make each region internally consistent, so that the target values inside a leaf are not too dispersed around their mean.
+
+For classification, if $p_k=\frac{N_k}{N}$ is the proportion of samples in class $k$ within a region, then one option is Gini impurity:
+$$
+G(\mathcal{R})=1-\sum_{k=1}^{K} p_k^2
+$$
+
+Another is entropy:
+$$
+H(\mathcal{R})=-\sum_{k=1}^{K} p_k \log p_k
+$$
+
+For regression, a common objective is the within-region squared error:
+$$
+D(\mathcal{R})=\frac{1}{|\mathcal{R}|}\sum_{i \in \mathcal{R}}(y_i-\hat{y}_{\mathcal{R}})^2
+$$
+where
+$$
+\hat{y}_{\mathcal{R}}=\frac{1}{|\mathcal{R}|}\sum_{i \in \mathcal{R}} y_i
+$$
+
+So a tree is basically a greedy procedure that keeps partitioning the space until some stopping criterion is met. The training loop is conceptually simple: iterate over features, iterate over possible thresholds, evaluate the objective, keep the best split, and recurse on the left and right subsets.
+
+That works, but a single tree has obvious limitations. It is high variance, unstable, and prone to overfitting. Small changes in the data can produce a very different tree. This is where boosting enters.
+
+Instead of trying to build one perfect tree, boosting builds a sequence of trees that iteratively correct the mistakes of the current model. We start from an initial model $F_0(X)$ and at each iteration add a new tree:
+$$
+F_m(X)=F_{m-1}(X)+h_m(X)
+$$
+
+The important part is that the new tree does not directly learn the target $Y$. It learns a correction on top of the current accumulated model.
+
+To decide what that correction should be, we look at the loss function. Suppose we are trying to minimize a training objective $\mathcal{L}(Y, F(X))$. At step $m$, the current model is $F_{m-1}(X)$, and we want to add a function $h_m(X)$ that reduces the loss as much as possible.
+
+A natural way to understand the direction of improvement is through the gradient. For each sample $x_i$, we compute
+$$
+g_i=\frac{\partial \mathcal{L}(y_i, F_{m-1}(x_i))}{\partial F_{m-1}(x_i)}
+$$
+
+The gradient points in the direction of greatest increase of the loss, so to reduce the error we want to move in the opposite direction, namely along $-g_i$.
+
+For example, if we use MSE in regression,
+$$
+\mathcal{L}(y_i,F(x_i))=\frac{1}{2}(y_i-F(x_i))^2
+$$
+then
+$$
+g_i=\frac{\partial \mathcal{L}}{\partial F(x_i)}=F(x_i)-y_i
+$$
+which implies
+$$
+-g_i=y_i-F(x_i)
+$$
+
+So in that simple case, the negative gradient is just the residual. But the point of the general formulation is that we are not limited to MSE. We want a method that works for arbitrary differentiable losses.
+
+This is where the second-order Taylor expansion comes in. In practice, one could compute the loss directly for some particular objectives, but Taylor gives a generic way to approximate the local change in the objective when we add a new function $h_m(X)$.
+
+At step $m$, the updated model is
+$$
+F_m(X)=F_{m-1}(X)+h_m(X)
+$$
+
+So the loss for one example becomes
+$$
+\mathcal{L}(y_i, F_{m-1}(x_i)+h_m(x_i))
+$$
+
+Now we expand this around $h_m(x_i)=0$:
+$$
+\mathcal{L}(y_i, F_{m-1}(x_i)+h_m(x_i))
+\approx
+\mathcal{L}(y_i,F_{m-1}(x_i))
++
+\frac{\partial \mathcal{L}(y_i,F_{m-1}(x_i))}{\partial F_{m-1}(x_i)} h_m(x_i)
++
+\frac{1}{2}
+\frac{\partial^2 \mathcal{L}(y_i,F_{m-1}(x_i))}{\partial F_{m-1}(x_i)^2}
+h_m(x_i)^2
+$$
+
+Define
+$$
+g_i=\frac{\partial \mathcal{L}(y_i,F_{m-1}(x_i))}{\partial F_{m-1}(x_i)}
+$$
+and
+$$
+h_i=\frac{\partial^2 \mathcal{L}(y_i,F_{m-1}(x_i))}{\partial F_{m-1}(x_i)^2}
+$$
+
+Then the approximation becomes
+$$
+\mathcal{L}(y_i, F_{m-1}(x_i)+h_m(x_i))
+\approx
+\mathcal{L}(y_i,F_{m-1}(x_i)) + g_i h_m(x_i) + \frac{1}{2} h_i h_m(x_i)^2
+$$
+
+Summing over the whole dataset, the optimization problem is
+$$
+\arg\min_{h_m} \sum_i \mathcal{L}(y_i, F_{m-1}(x_i)+h_m(x_i))
+$$
+which we approximate as
+$$
+\arg\min_{h_m} \sum_i \left[
+\mathcal{L}(y_i,F_{m-1}(x_i)) + g_i h_m(x_i) + \frac{1}{2} h_i h_m(x_i)^2
+\right]
+$$
+
+The first term does not depend on $h_m$, so for the purpose of optimization we can drop it:
+$$
+\arg\min_{h_m} \sum_i \left[
+g_i h_m(x_i) + \frac{1}{2} h_i h_m(x_i)^2
+\right]
+$$
+
+Now recall that the learner we fit at each step is a regression tree. That means the output of the tree is piecewise constant. If a sample falls into region $\mathcal{R}_j$, then the tree outputs a constant value $w_j$:
+$$
+h_m(X)=
+\begin{cases}
+w_0 & \text{if } x \in \mathcal{R}_0 \\
+w_1 & \text{if } x \in \mathcal{R}_1 \\
+\vdots \\
+w_T & \text{if } x \in \mathcal{R}_T
+\end{cases}
+$$
+
+This means the optimization decomposes by leaf. For a given leaf $\mathcal{R}_j$, we solve
+$$
+\arg\min_{w_j}\sum_{i \in \mathcal{R}_j}\left(g_i w_j + \frac{1}{2} h_i w_j^2\right)
+$$
+
+Since $w_j$ is constant inside the region, we can factor it out:
+$$
+\arg\min_{w_j}\left(
+w_j \sum_{i \in \mathcal{R}_j} g_i +
+\frac{1}{2} w_j^2 \sum_{i \in \mathcal{R}_j} h_i
+\right)
+$$
+
+This is now just a quadratic function in $w_j$. To find the minimum, we differentiate with respect to $w_j$ and set it to zero:
+$$
+\frac{d}{dw_j}\left(
+w_j \sum_{i \in \mathcal{R}_j} g_i +
+\frac{1}{2} w_j^2 \sum_{i \in \mathcal{R}_j} h_i
+\right)
+=
+\sum_{i \in \mathcal{R}_j} g_i + w_j \sum_{i \in \mathcal{R}_j} h_i
+$$
+
+Setting that equal to zero:
+$$
+\sum_{i \in \mathcal{R}_j} g_i + w_j \sum_{i \in \mathcal{R}_j} h_i = 0
+$$
+
+Solving for $w_j$:
+$$
+w_j=-\frac{\sum_{i \in \mathcal{R}_j} g_i}{\sum_{i \in \mathcal{R}_j} h_i}
+$$
+
+If we define
+$$
+G_j=\sum_{i \in \mathcal{R}_j} g_i
+\quad \text{and} \quad
+H_j=\sum_{i \in \mathcal{R}_j} h_i
+$$
+then
+$$
+w_j=-\frac{G_j}{H_j}
+$$
+
+This gives the optimal output value for a leaf under the second-order approximation.
+
+At this point, we can also write the score of a leaf. If we plug the optimal $w_j$ back into the objective, the leaf score becomes proportional to
+$$
+\mathrm{score}_j=\frac{1}{2}\frac{G_j^2}{H_j}
+$$
+
+Now consider splitting a node into left and right children. Let $(G,H)$ be the gradient and Hessian sums of the parent node, and $(G_L,H_L)$ and $(G_R,H_R)$ those of the children. Then the improvement from splitting is the difference between the children's scores and the parent's score:
+$$
+\mathrm{Gain}
+=
+\frac{1}{2}
+\left(
+\frac{G_L^2}{H_L} + \frac{G_R^2}{H_R} - \frac{G^2}{H}
+\right)
+$$
+
+This is a major conceptual shift relative to standard decision trees. A classical tree uses impurity reduction like Gini, entropy, or MSE. XGBoost uses direct loss reduction under a second-order approximation. The split criterion is not a generic impurity anymore. It is literally "how much does this split improve the objective?"
+
+Without regularization, though, this can easily overfit. The model may create too many tiny leaves or assign very large values to them. So XGBoost adds explicit regularization.
+
+First, an L2 penalty on leaf values:
+$$
+\frac{1}{2}\lambda \sum_j w_j^2
+$$
+
+Second, a penalty on the number of leaves:
+$$
+\gamma L
+$$
+where $L$ is the number of leaves.
+
+Then the regularized objexctive becomes
+$$
+\sum_i \left(g_i h_m(x_i) + \frac{1}{2} h_i h_m(x_i)^2\right)
++ \gamma L
++ \frac{1}{2}\lambda \sum_j w_j^2
+$$
+
+With this regularization, the optimal leaf value changes to
+$$
+w_j=-\frac{G_j}{H_j+\lambda}
+$$
+
+and the split gain becomes
+$$
+\mathrm{Gain}
+=
+\frac{1}{2}
+\left(
+\frac{G_L^2}{H_L+\lambda} +
+\frac{G_R^2}{H_R+\lambda} -
+\frac{G^2}{H+\lambda}
+\right)
+-\gamma
+$$
+
+The role of $\lambda$ is to shrink leaf values and make them more stable. The role of $\gamma$ is to avoid splits that do not produce enough improvement to justify the extra complexity.
+
+So the whole progression is more or less this. A decision tree partitions the space greedily by minimizing impurity. Boosting turns many weak trees into a strong model by iteratively adding corrections on top of the current predictions. XGBoost makes that process more explicit and more efficient by fitting each new tree to a second-order approximation of the objective, computing optimal leaf values analytically, and evaluating splits through direct gain in the loss, with regularization built in.
+
+That is why it feels more principled than "just a bunch of trees." At every step, the model is trying to answer a very concrete question: given the current predictions, what tree should I add now so that the objective decreases the most?
